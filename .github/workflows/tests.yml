@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # NetGuardian targets Windows (netsh, Npcap, UAC), so test where it runs.
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        # Qt needs an offscreen platform plugin on a headless runner.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest --cov=core --cov=utils --cov-report=term-missing
+
+      - name: Check every module imports
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "import main"
